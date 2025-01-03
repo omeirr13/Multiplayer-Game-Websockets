@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body>
+        <h1>Ball Game</h1>
+        <button id="btnCreate">New Game</button>
+        <button id="btnJoin">Join Game</button>
+        <input type="text" id="gameId" />
+        <div id="players"></div>
+        <div id="board"></div>
+        <!-- we can assume moment we open the browser we connect, bad idea tho -->
+        <script>
+            const btnCreate = document.getElementById("btnCreate");
+            const btnJoin = document.getElementById("btnJoin");
+            const gameInput = document.getElementById("gameId");
+            const divPlayers = document.getElementById("players");
+            const divBoard = document.getElementById("board");
+
+            let clientId = null;
+            let gameId = null;
+            let ws = new WebSocket("ws://localhost:8080");
+            let playerColor = null;
+
+            btnCreate.addEventListener("click", (e) => {
+                const payload = {
+                    method: "create",
+                    clientId,
+                };
+                ws.send(JSON.stringify(payload));
+            });
+
+            btnJoin.addEventListener("click", (e) => {
+                const payload = {
+                    method: "join",
+                    clientId,
+                    gameId: gameInput.value,
+                };
+                ws.send(JSON.stringify(payload));
+            });
+
+            ws.onmessage = (message) => {
+                //message.data
+                const response = JSON.parse(message.data);
+                if (response.method === "connect") {
+                    clientId = response.clientId;
+                    console.log("clientid set successfully", clientId);
+                } else if (response.method === "create") {
+                    gameId = response.game.id;
+                    gameInput.value = gameId;
+                    console.log(
+                        `Game created with id ${response.game.id} with ${response.game.balls} balls`
+                    );
+                } else if (response.method === "join") {
+                    const game = response.game;
+                    let html = "";
+                    game.clients.forEach((client) => {
+                        html += `<div style="background-color:${client.color}">${client.clientId}</div>`;
+                        console.log(client.id, clientId);
+                        if(client.clientId === clientId){
+                            playerColor = client.color;
+                        }
+                    });
+                    divPlayers.innerHTML = html;
+
+                    while (divBoard.firstChild)
+                        divBoard.removeChild(divBoard.firstChild);
+
+                    for (let i = 0; i < game.balls; i++) {
+                        const b = document.createElement("button");
+                        b.id = "ball" + i;
+                        b.tag = i + 1;
+                        b.textContent = i + 1;
+                        b.style.width="150px";
+                        b.style.height="150px";
+
+                        b.addEventListener("click", (e) => {
+                            b.style.background = playerColor;
+                            const payload = {
+                                method: "play",
+                                gameId: gameId,
+                                clientId: clientId,
+                                ballId: b.tag
+                            };
+                            ws.send(JSON.stringify(payload));
+                        });
+                        divBoard.appendChild(b);
+                    }
+                }
+            };
+        </script>
+    </body>
+</html>
