@@ -7,6 +7,7 @@
     </head>
     <body>
         <h1>Ball Game</h1>
+        <h1 id="winner"></h1>
         <button id="btnCreate">New Game</button>
         <button id="btnJoin">Join Game</button>
         <input type="text" id="gameId" />
@@ -56,11 +57,12 @@
                     );
                 } else if (response.method === "join") {
                     const game = response.game;
+                    gameId = game.id;
                     let html = "";
                     game.clients.forEach((client) => {
                         html += `<div style="background-color:${client.color}">${client.clientId}</div>`;
                         console.log(client.id, clientId);
-                        if(client.clientId === clientId){
+                        if (client.clientId === clientId) {
                             playerColor = client.color;
                         }
                     });
@@ -74,8 +76,8 @@
                         b.id = "ball" + i;
                         b.tag = i + 1;
                         b.textContent = i + 1;
-                        b.style.width="150px";
-                        b.style.height="150px";
+                        b.style.width = "150px";
+                        b.style.height = "150px";
 
                         b.addEventListener("click", (e) => {
                             b.style.background = playerColor;
@@ -83,12 +85,23 @@
                                 method: "play",
                                 gameId: gameId,
                                 clientId: clientId,
-                                ballId: b.tag
+                                ballId: b.tag,
+                                color: playerColor,
                             };
                             ws.send(JSON.stringify(payload));
                         });
                         divBoard.appendChild(b);
                     }
+                } else if (response.method === "update") {
+                    const gameState = response.game.state;
+                    for (const ball of Object.keys(gameState)) {
+                        const color = gameState[ball];
+                        const b = document.getElementById(`ball${ball-1}`);
+                        b.style.background = color;
+                    }
+                } else if(response.method === "won") {
+                    const message = response.message;
+                    document.getElementById("winner").innerText = message;
                 }
             };
         </script>
